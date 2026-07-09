@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
@@ -71,6 +71,22 @@ using (var scope = app.Services.CreateScope()) {
     var db  = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     var cfg = builder.Configuration;
     db.Database.EnsureCreated();
+    db.Database.ExecuteSqlRaw(@"
+IF OBJECT_ID('dbo.Waitlist', 'U') IS NOT NULL
+    DROP TABLE dbo.Waitlist;
+
+IF COL_LENGTH('dbo.RideRequests', 'FromLat') IS NULL
+    ALTER TABLE dbo.RideRequests ADD FromLat decimal(10,7) NULL;
+
+IF COL_LENGTH('dbo.RideRequests', 'FromLng') IS NULL
+    ALTER TABLE dbo.RideRequests ADD FromLng decimal(10,7) NULL;
+
+IF COL_LENGTH('dbo.RideRequests', 'ToLat') IS NULL
+    ALTER TABLE dbo.RideRequests ADD ToLat decimal(10,7) NULL;
+
+IF COL_LENGTH('dbo.RideRequests', 'ToLng') IS NULL
+    ALTER TABLE dbo.RideRequests ADD ToLng decimal(10,7) NULL;
+");
     var adminEmail = cfg["AppSettings:AdminEmail"]!;
     if (!db.Users.Any(u => u.Email == adminEmail)) {
         db.Users.Add(new User {

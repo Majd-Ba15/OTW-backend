@@ -9,7 +9,6 @@ public class AppDbContext : DbContext {
     public DbSet<Ride>            Rides            { get; set; }
     public DbSet<RideStop>        RideStops        { get; set; }
     public DbSet<Booking>         Bookings         { get; set; }
-    public DbSet<Waitlist>        Waitlist         { get; set; }
     public DbSet<Message>         Messages         { get; set; }
     public DbSet<Rating>          Ratings          { get; set; }
     public DbSet<Report>          Reports          { get; set; }
@@ -17,6 +16,8 @@ public class AppDbContext : DbContext {
     public DbSet<Notification>    Notifications    { get; set; }
     public DbSet<FavouriteRoute>  FavouriteRoutes  { get; set; }
     public DbSet<LocationHistory> LocationHistory  { get; set; }
+    public DbSet<RideRequest>     RideRequests     { get; set; }
+    public DbSet<DriverAvailability> DriverAvailabilities { get; set; }
 
     protected override void OnModelCreating(ModelBuilder m) {
         m.Entity<User>().HasIndex(u => u.Email).IsUnique();
@@ -26,8 +27,6 @@ public class AppDbContext : DbContext {
         m.Entity<RideStop>().HasOne(s => s.Ride).WithMany(r => r.Stops).HasForeignKey(s => s.RideId).OnDelete(DeleteBehavior.Cascade);
         m.Entity<Booking>().HasOne(b => b.Ride).WithMany(r => r.Bookings).HasForeignKey(b => b.RideId).OnDelete(DeleteBehavior.Restrict);
         m.Entity<Booking>().HasOne(b => b.Rider).WithMany(u => u.Bookings).HasForeignKey(b => b.RiderId).OnDelete(DeleteBehavior.Restrict);
-        m.Entity<Waitlist>().HasOne(w => w.Ride).WithMany().HasForeignKey(w => w.RideId).OnDelete(DeleteBehavior.Cascade);
-        m.Entity<Waitlist>().HasOne(w => w.Rider).WithMany().HasForeignKey(w => w.RiderId).OnDelete(DeleteBehavior.Restrict);
         m.Entity<Message>().HasOne(msg => msg.Ride).WithMany(r => r.Messages).HasForeignKey(msg => msg.RideId).OnDelete(DeleteBehavior.Cascade);
         m.Entity<Message>().HasOne(msg => msg.Sender).WithMany().HasForeignKey(msg => msg.SenderId).OnDelete(DeleteBehavior.Restrict);
         m.Entity<RideStop>().HasKey(s => s.StopId);
@@ -35,10 +34,16 @@ public class AppDbContext : DbContext {
         m.Entity<FavouriteRoute>().HasOne(f => f.User).WithMany().HasForeignKey(f => f.UserId).OnDelete(DeleteBehavior.Cascade);
         m.Entity<LocationHistory>().HasKey(l => l.LocationId);
         m.Entity<LocationHistory>().HasOne(l => l.Ride).WithMany(r => r.Locations).HasForeignKey(l => l.RideId).OnDelete(DeleteBehavior.Cascade);
+        m.Entity<RideRequest>().HasKey(r => r.RideRequestId);
+        m.Entity<RideRequest>().HasOne(r => r.Rider).WithMany().HasForeignKey(r => r.RiderId).OnDelete(DeleteBehavior.Restrict);
+        m.Entity<RideRequest>().HasOne(r => r.MatchedDriver).WithMany().HasForeignKey(r => r.MatchedDriverId).OnDelete(DeleteBehavior.SetNull);
+        m.Entity<DriverAvailability>().HasKey(a => a.DriverAvailabilityId);
+        m.Entity<DriverAvailability>().HasOne(a => a.Driver).WithMany().HasForeignKey(a => a.DriverId).OnDelete(DeleteBehavior.Cascade);
         m.Entity<ChatLog>().HasKey(c => c.LogId);
         m.Entity<ChatLog>().HasOne(c => c.User).WithMany().HasForeignKey(c => c.UserId).OnDelete(DeleteBehavior.Cascade);
         m.Entity<User>().Property(u => u.AverageRating).HasColumnType("decimal(3,2)");
         m.Entity<Ride>().Property(r => r.PricePerSeat).HasColumnType("decimal(8,2)");
+        m.Entity<Ride>().Property(r => r.DistanceKm).HasColumnType("decimal(8,2)");
         m.Entity<Ride>().Property(r => r.FromLat).HasColumnType("decimal(10,7)");
         m.Entity<Ride>().Property(r => r.FromLng).HasColumnType("decimal(10,7)");
         m.Entity<Ride>().Property(r => r.ToLat).HasColumnType("decimal(10,7)");
@@ -48,5 +53,11 @@ public class AppDbContext : DbContext {
         m.Entity<RideStop>().Property(s => s.StopPrice).HasColumnType("decimal(8,2)");
         m.Entity<LocationHistory>().Property(l => l.Lat).HasColumnType("decimal(10,7)");
         m.Entity<LocationHistory>().Property(l => l.Lng).HasColumnType("decimal(10,7)");
+        m.Entity<RideRequest>().Property(r => r.MaxPrice).HasColumnType("decimal(8,2)");
+        m.Entity<RideRequest>().Property(r => r.FromLat).HasColumnType("decimal(10,7)");
+        m.Entity<RideRequest>().Property(r => r.FromLng).HasColumnType("decimal(10,7)");
+        m.Entity<RideRequest>().Property(r => r.ToLat).HasColumnType("decimal(10,7)");
+        m.Entity<RideRequest>().Property(r => r.ToLng).HasColumnType("decimal(10,7)");
+        m.Entity<DriverAvailability>().Property(a => a.SuggestedPrice).HasColumnType("decimal(8,2)");
     }
 }
