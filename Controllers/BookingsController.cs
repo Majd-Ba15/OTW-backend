@@ -25,6 +25,11 @@ public class BookingsController : ControllerBase {
             var ride=await _db.Rides.FromSqlRaw("SELECT * FROM Rides WITH (UPDLOCK) WHERE RideId={0}",req.RideId).FirstOrDefaultAsync();
             if(ride==null) return NotFound(new{message="Ride not found"});
             if(ride.AvailableSeats<req.SeatsBooked) return BadRequest(new{message="Ride is full"});
+            if(ride.GenderPreference!="Any") {
+                var riderGender=await _db.Users.Where(u=>u.UserId==Me).Select(u=>u.Gender).FirstOrDefaultAsync();
+                if(!string.IsNullOrEmpty(riderGender)&&riderGender!=ride.GenderPreference)
+                    return BadRequest(new{message=$"This ride is reserved for {ride.GenderPreference} riders only"});
+            }
             var exists=await _db.Bookings.AnyAsync(b=>b.RideId==req.RideId&&b.RiderId==Me&&(b.Status=="Pending"||b.Status=="Confirmed"));
             if(exists) return BadRequest(new{message="Already booked"});
             var booking=new Booking{RideId=req.RideId,RiderId=Me,SeatsBooked=req.SeatsBooked,Note=req.Note,Status="Pending"};
@@ -66,8 +71,8 @@ public class BookingsController : ControllerBase {
         await _db.SaveChangesAsync();
         // In-app notification
         await _notif.CreateAsync(b.RiderId,
-            "Booking confirmed! âœ“",
-            $"Your seat on {b.Ride.FromLocation} â†’ {b.Ride.ToLocation} is confirmed",
+            "Booking confirmed! ✓",
+            $"Your seat on {b.Ride.FromLocation} → {b.Ride.ToLocation} is confirmed",
             "Confirmed", b.BookingId);
         // Email to rider
         await _email.SendBookingAcceptedAsync(
@@ -77,7 +82,7 @@ public class BookingsController : ControllerBase {
             b.Ride.ToLocation,
             b.Ride.DepartureTime.ToString("dddd dd MMM yyyy, h:mm tt"),
             b.Ride.Driver.FullName,
-            b.Ride.Car?.PlateNumber ?? "â€”");
+            b.Ride.Car?.PlateNumber ?? "—");
         return Ok(new{message="Accepted"});
     }
 
