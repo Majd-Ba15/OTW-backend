@@ -64,8 +64,23 @@ public class AdminController : ControllerBase {
     }
 
     [HttpGet("verifications/pending")]
-    public async Task<IActionResult> GetPending() =>
-        Ok(await _db.Users.Where(u=>!u.IsVerified&&u.StudentIdPhoto!=null&&u.Role!="Admin").OrderBy(u=>u.CreatedAt).ToListAsync());
+    public async Task<IActionResult> GetPending() {
+        var users = await _db.Users.Where(u=>!u.IsVerified&&u.StudentIdPhoto!=null&&u.Role!="Admin").OrderBy(u=>u.CreatedAt).ToListAsync();
+        // User has no Car navigation property, so the car/licence photo needs an
+        // explicit lookup here — without this, admin can never actually see what
+        // a driver uploaded, even once it's correctly saved on the Car row.
+        var driverIds = users.Where(u=>u.Role=="Driver").Select(u=>u.UserId).ToList();
+        var cars = await _db.Cars.Where(c=>driverIds.Contains(c.DriverId)).ToDictionaryAsync(c=>c.DriverId);
+        return Ok(users.Select(u => {
+            cars.TryGetValue(u.UserId, out var car);
+            return new {
+                u.UserId, u.FullName, u.Email, u.Role, u.StudentId, u.Faculty, u.CreatedAt,
+                studentIdPhotoUrl = u.StudentIdPhoto,
+                carModel = car?.Model, plateNumber = car?.PlateNumber, colour = car?.Colour,
+                licencePhotoUrl = car?.LicencePhoto,
+            };
+        }));
+    }
 
     [HttpPut("verifications/{id}/approve")]
     public async Task<IActionResult> Approve(int id) {
@@ -112,7 +127,15 @@ public class AdminController : ControllerBase {
     public async Task<IActionResult> GetReports([FromQuery]string? status) {
         var q=_db.Reports.AsQueryable();
         if(!string.IsNullOrEmpty(status)) q=q.Where(r=>r.Status==status);
-        return Ok(await q.OrderByDescending(r=>r.CreatedAt).ToListAsync());
+        var reports=await q.OrderByDescending(r=>r.CreatedAt).ToListAsync();
+        // Attach reporter/reported names so the list shows who filed it (not "Unknown").
+        var ids=reports.SelectMany(r=>new[]{r.ReportedBy,r.ReportedUser}).Distinct().ToList();
+        var names=await _db.Users.Where(u=>ids.Contains(u.UserId)).ToDictionaryAsync(u=>u.UserId,u=>u.FullName);
+        return Ok(reports.Select(r=>new {
+            r.ReportId, r.ReportedBy, r.ReportedUser, r.RideId, r.Type, r.Statement, r.Status, r.CreatedAt,
+            reporterName=names.GetValueOrDefault(r.ReportedBy),
+            reportedName=names.GetValueOrDefault(r.ReportedUser)
+        }));
     }
 
     [HttpGet("reports/{id}")]
