@@ -22,7 +22,7 @@ public class BookingsController : ControllerBase {
     public async Task<IActionResult> Book([FromBody] BookingRequest req) {
         await using var tx=await _db.Database.BeginTransactionAsync();
         try {
-            var ride=await _db.Rides.FromSqlRaw("SELECT * FROM Rides WITH (UPDLOCK) WHERE RideId={0}",req.RideId).FirstOrDefaultAsync();
+            var ride=await _db.Rides.FromSqlRaw(@"SELECT * FROM ""Rides"" WHERE ""RideId""={0} FOR UPDATE",req.RideId).FirstOrDefaultAsync();
             if(ride==null) return NotFound(new{message="Ride not found"});
             if(ride.AvailableSeats<req.SeatsBooked) return BadRequest(new{message="Ride is full"});
             if(ride.GenderPreference!="Any") {

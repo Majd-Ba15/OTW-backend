@@ -223,8 +223,8 @@ public class AdminController : ControllerBase {
         var reportsOpen=await _db.Reports.CountAsync(r=>r.Status=="Open");
         var reportsResolved=await _db.Reports.CountAsync(r=>r.Status!="Open");
         var reportsByType=await _db.Reports.GroupBy(r=>r.Type).Select(g=>new{type=g.Key,count=g.Count()}).OrderByDescending(x=>x.count).Take(5).ToListAsync();
-        var resolvedHours=await _db.Reports.Where(r=>r.ResolvedAt!=null).Select(r=>EF.Functions.DateDiffHour(r.CreatedAt,r.ResolvedAt!.Value)).ToListAsync();
-        var avgResolutionHours=resolvedHours.Count>0?Math.Round(resolvedHours.Average(),1):0;
+        var resolvedPairs=await _db.Reports.Where(r=>r.ResolvedAt!=null).Select(r=>new{r.CreatedAt,r.ResolvedAt}).ToListAsync();
+        var avgResolutionHours=resolvedPairs.Count>0?Math.Round(resolvedPairs.Average(p=>(p.ResolvedAt!.Value-p.CreatedAt).TotalHours),1):0;
 
         // ── Geo pickup points (window) ──
         var geoPoints=await _db.Rides.Where(r=>r.CreatedAt>=from&&r.FromLat!=null&&r.FromLng!=null).Select(r=>new{lat=r.FromLat,lng=r.FromLng}).ToListAsync();

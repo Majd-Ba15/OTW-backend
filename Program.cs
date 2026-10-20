@@ -7,6 +7,11 @@ using OTW.Api.Services;
 using OTW.Api.Hubs;
 using OTW.Api.Models;
 
+// PostgreSQL (Npgsql) otherwise rejects DateTime values that aren't tagged UTC.
+// Legacy mode maps DateTime to a plain timestamp, matching the original SQL Server
+// behaviour so dates coming from the frontend (e.g. DepartureTime) keep working.
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Render (and most PaaS hosts) assign the listen port dynamically via $PORT.
@@ -21,7 +26,7 @@ builder.Services.AddHttpClient();
 
 // ── Database ──────────────────────────────────
 builder.Services.AddDbContext<AppDbContext>(o =>
-    o.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    o.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // ── JWT Auth ──────────────────────────────────
 var jwt = builder.Configuration["AppSettings:JwtSecret"]!;
@@ -85,20 +90,11 @@ using (var scope = app.Services.CreateScope()) {
     var cfg = builder.Configuration;
     db.Database.EnsureCreated();
     db.Database.ExecuteSqlRaw(@"
-IF OBJECT_ID('dbo.Waitlist', 'U') IS NOT NULL
-    DROP TABLE dbo.Waitlist;
-
-IF COL_LENGTH('dbo.RideRequests', 'FromLat') IS NULL
-    ALTER TABLE dbo.RideRequests ADD FromLat decimal(10,7) NULL;
-
-IF COL_LENGTH('dbo.RideRequests', 'FromLng') IS NULL
-    ALTER TABLE dbo.RideRequests ADD FromLng decimal(10,7) NULL;
-
-IF COL_LENGTH('dbo.RideRequests', 'ToLat') IS NULL
-    ALTER TABLE dbo.RideRequests ADD ToLat decimal(10,7) NULL;
-
-IF COL_LENGTH('dbo.RideRequests', 'ToLng') IS NULL
-    ALTER TABLE dbo.RideRequests ADD ToLng decimal(10,7) NULL;
+DROP TABLE IF EXISTS ""Waitlist"";
+ALTER TABLE ""RideRequests"" ADD COLUMN IF NOT EXISTS ""FromLat"" decimal(10,7);
+ALTER TABLE ""RideRequests"" ADD COLUMN IF NOT EXISTS ""FromLng"" decimal(10,7);
+ALTER TABLE ""RideRequests"" ADD COLUMN IF NOT EXISTS ""ToLat"" decimal(10,7);
+ALTER TABLE ""RideRequests"" ADD COLUMN IF NOT EXISTS ""ToLng"" decimal(10,7);
 ");
     var adminEmail = cfg["AppSettings:AdminEmail"]!;
     if (!db.Users.Any(u => u.Email == adminEmail)) {
