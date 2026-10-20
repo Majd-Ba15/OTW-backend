@@ -66,7 +66,8 @@ builder.Services.AddSignalR();
 // extends the default localhost origin used for local frontend development.
 var corsOrigins = (Environment.GetEnvironmentVariable("CORS_ALLOWED_ORIGINS") ?? "")
     .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-    .Append("http://localhost:3000")
+    .Append("http://localhost:3000")          // local frontend dev
+    .Append("https://otw-fyp.vercel.app")     // deployed Vercel frontend
     .Distinct()
     .ToArray();
 
