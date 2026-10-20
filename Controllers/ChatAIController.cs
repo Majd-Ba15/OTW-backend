@@ -3,28 +3,14 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OTW.Api.Data;
 using OTW.Api.Models;
-using OTW.Api.Services;
 
 namespace OTW.Api.Controllers;
 
 [ApiController][Route("api/chat")][Authorize]
 public class ChatAIController : ControllerBase {
     readonly AppDbContext _db;
-    readonly IAIService   _ai;
-    public ChatAIController(AppDbContext db, IAIService ai) { _db=db; _ai=ai; }
+    public ChatAIController(AppDbContext db) { _db=db; }
     int Me => int.Parse(User.FindFirst("userId")!.Value);
-
-    [HttpPost("support")]
-    public async Task<IActionResult> Support([FromBody] ChatRequest req) {
-        var user=await _db.Users.FindAsync(Me); if(user==null) return NotFound();
-        var sys=user.Role=="Driver"
-            ?"You are OTW support for drivers on a university carpooling app. Only answer questions about posting rides, bookings, verification, car details, ratings, cancellations. Be short and helpful."
-            :"You are OTW support for riders on a university carpooling app. Only answer questions about finding rides, booking, cancellations, cash payment, chat, ratings, safety, SOS. Be short and helpful.";
-        var reply=await _ai.ChatAsync(sys,req.Message);
-        _db.ChatLogs.Add(new ChatLog{UserId=Me,UserMessage=req.Message,AIResponse=reply});
-        await _db.SaveChangesAsync();
-        return Ok(new{reply});
-    }
 
     [HttpGet("history")]
     public async Task<IActionResult> GetHistory() =>

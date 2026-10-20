@@ -299,12 +299,23 @@ public class DemandController : ControllerBase {
             .Distinct()
             .ToList();
 
-        foreach (var driverId in driverIds)
-            await _notif.CreateAsync(driverId, "Rider request needs a driver",
-                $"{req.FromLocation} -> {req.ToLocation}, {req.DesiredTime:ddd dd MMM h:mm tt}",
-                "RideRequest", req.RideRequestId);
+        // Notify each matching driver in-app AND by email showing the matched request.
+        var drivers = await _db.Users
+            .Where(u => driverIds.Contains(u.UserId))
+            .Select(u => new { u.UserId, u.Email, u.FullName })
+            .ToListAsync();
 
-        return Ok(new { message = $"Notified {driverIds.Count} drivers", notified = driverIds.Count, notifiedCount = driverIds.Count });
+        foreach (var drv in drivers) {
+            await _notif.CreateAsync(drv.UserId, "Rider request needs a driver",
+                $"{req.FromLocation} → {req.ToLocation}, {req.DesiredTime:ddd dd MMM h:mm tt}",
+                "RideRequest", req.RideRequestId);
+            await _email.SendDemandNotifyAsync(drv.Email, drv.FullName,
+                req.FromLocation, req.ToLocation,
+                req.DesiredTime.ToString("dddd dd MMM yyyy, h:mm tt"),
+                req.SeatsNeeded);
+        }
+
+        return Ok(new { message = $"Notified {drivers.Count} drivers", notified = drivers.Count, notifiedCount = drivers.Count });
     }
     [HttpGet("admin/analytics")]
     public async Task<IActionResult> DemandAnalytics() {

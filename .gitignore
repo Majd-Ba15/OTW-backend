@@ -353,6 +353,12 @@ ASALocalRun/
 # BeatPulse healthcheck temp database
 healthchecksdb
 
+# Local secrets (JWT secret, mail password, etc.) — never commit this
+appsettings.Development.json
+
+# User-uploaded files — stored on ImgBB in production, local disk is ephemeral
+wwwroot/uploads/
+
 # Backup folder for Package Reference Convert tool in Visual Studio 2017
 MigrationBackup/
 

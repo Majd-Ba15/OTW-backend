@@ -90,6 +90,13 @@ public class RidesController : ControllerBase {
         if(!string.IsNullOrEmpty(req.Status))           r.Status=req.Status;
         if(req.FromLat.HasValue) r.FromLat=req.FromLat; if(req.FromLng.HasValue) r.FromLng=req.FromLng;
         if(req.ToLat.HasValue)   r.ToLat=req.ToLat;     if(req.ToLng.HasValue)   r.ToLng=req.ToLng;
+        // Seats: keep the already-booked count when the total changes (recurring edit).
+        if(req.TotalSeats>0 && req.TotalSeats!=r.TotalSeats) {
+            var booked = r.TotalSeats - r.AvailableSeats;
+            r.TotalSeats = req.TotalSeats;
+            r.AvailableSeats = Math.Max(0, req.TotalSeats - booked);
+        }
+        if(req.RecurringDays!=null) r.RecurringDays=req.RecurringDays;
         // Replace the ride's stops when a new list is provided
         if(req.Stops is {Count:>0}) {
             _db.RideStops.RemoveRange(r.Stops);
@@ -137,7 +144,7 @@ public class RidesController : ControllerBase {
                 "Rider", r.Driver.FullName, b.BookingId);
             // Notification to rider
             await _notif.CreateAsync(b.RiderId,
-                "Ride completed â€” please rate your driver â­",
+                "Ride completed — please rate your driver ⭐",
                 $"How was your ride with {r.Driver.FullName}?",
                 "RateRide", b.BookingId);
         }

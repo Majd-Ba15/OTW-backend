@@ -36,6 +36,7 @@ public class UsersController : ControllerBase {
         // CampusName only — University itself is set once at registration and
         // is not editable here (changing it would bypass the domain check).
         if(u.CampusName!=null)       user.CampusName=u.CampusName;
+        if(u.ProfilePhoto!=null)     user.ProfilePhoto=u.ProfilePhoto;
         RecalcCompletion(user);
         await _db.SaveChangesAsync(); return Ok(new{message="Profile updated"});
     }

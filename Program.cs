@@ -9,15 +9,21 @@ using OTW.Api.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// â”€â”€ Settings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Render (and most PaaS hosts) assign the listen port dynamically via $PORT.
+var port = Environment.GetEnvironmentVariable("PORT");
+if (!string.IsNullOrEmpty(port)) builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+
+// ── Settings ──────────────────────────────────
 builder.Services.Configure<AppSettings>(builder.Configuration.GetSection("AppSettings"));
 builder.Services.Configure<MailSettings>(builder.Configuration.GetSection("MailKit"));
+builder.Services.Configure<ImgBbSettings>(builder.Configuration.GetSection("ImgBB"));
+builder.Services.AddHttpClient();
 
-// â”€â”€ Database â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Database ──────────────────────────────────
 builder.Services.AddDbContext<AppDbContext>(o =>
     o.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// â”€â”€ JWT Auth â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── JWT Auth ──────────────────────────────────
 var jwt = builder.Configuration["AppSettings:JwtSecret"]!;
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(o => {
@@ -39,21 +45,28 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
-// â”€â”€ Services â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Services ──────────────────────────────────
 builder.Services.AddScoped<IAuthService,        AuthService>();
 builder.Services.AddScoped<IEmailService,        EmailService>();
 builder.Services.AddScoped<IFileService,         FileService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
-builder.Services.AddScoped<IAIService,           AIService>();
-// Runs every 5 min â€” sends reminder email 1 hour before each ride
+// Runs every 5 min — sends reminder email 1 hour before each ride
 builder.Services.AddHostedService<RideReminderService>();
 
-// â”€â”€ SignalR â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── SignalR ───────────────────────────────────
 builder.Services.AddSignalR();
 
-// â”€â”€ CORS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── CORS ──────────────────────────────────────
+// CORS_ALLOWED_ORIGINS is a comma-separated env var (e.g. your Vercel URL) that
+// extends the default localhost origin used for local frontend development.
+var corsOrigins = (Environment.GetEnvironmentVariable("CORS_ALLOWED_ORIGINS") ?? "")
+    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+    .Append("http://localhost:3000")
+    .Distinct()
+    .ToArray();
+
 builder.Services.AddCors(o => o.AddPolicy("OTWPolicy", p =>
-    p.WithOrigins("http://localhost:3000")
+    p.WithOrigins(corsOrigins)
      .AllowAnyHeader().AllowAnyMethod().AllowCredentials()));
 
 builder.Services.AddControllers()
@@ -61,12 +74,12 @@ builder.Services.AddControllers()
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// â”€â”€ Static files (uploads) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Static files (uploads) ────────────────────
 builder.Services.AddDirectoryBrowser();
 
 var app = builder.Build();
 
-// â”€â”€ Auto-seed admin on startup â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Auto-seed admin on startup ────────────────
 using (var scope = app.Services.CreateScope()) {
     var db  = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     var cfg = builder.Configuration;
@@ -107,7 +120,11 @@ IF COL_LENGTH('dbo.RideRequests', 'ToLng') IS NULL
 
 if (app.Environment.IsDevelopment()) { app.UseSwagger(); app.UseSwaggerUI(); }
 
-app.UseStaticFiles();
+app.UseStaticFiles(new StaticFileOptions {
+    // Stop browsers from MIME-sniffing user-uploaded files into executable
+    // content (defence-in-depth alongside the image validation in FileService).
+    OnPrepareResponse = ctx => ctx.Context.Response.Headers["X-Content-Type-Options"] = "nosniff"
+});
 app.UseCors("OTWPolicy");
 app.UseAuthentication();
 app.UseAuthorization();

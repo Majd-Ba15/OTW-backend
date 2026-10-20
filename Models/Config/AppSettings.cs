@@ -9,5 +9,6 @@ public class AppSettings {
     public int      JwtExpiryDays             { get; set; } = 7;
     public string   AdminEmail                { get; set; } = "";
     public string   AdminPassword             { get; set; } = "";
+    public string   FrontendUrl               { get; set; } = "http://localhost:3000";
 }
 

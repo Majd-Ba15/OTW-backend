@@ -15,9 +15,13 @@ namespace OTW.Api.Services;
 
 public class EmailService : IEmailService {
     readonly MailSettings _cfg;
-    public EmailService(IOptions<MailSettings> cfg) => _cfg=cfg.Value;
+    readonly string _frontendUrl;
+    public EmailService(IOptions<MailSettings> cfg, IOptions<AppSettings> app) {
+        _cfg = cfg.Value;
+        _frontendUrl = app.Value.FrontendUrl.TrimEnd('/');
+    }
 
-    // â”€â”€ shared styled HTML wrapper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── shared styled HTML wrapper ─────────────
     static string Layout(string body) => $@"
         <div style='font-family:Arial,sans-serif;max-width:520px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e5e5e5'>
           <div style='background:#16a36b;padding:20px 28px;text-align:center'>
@@ -26,7 +30,7 @@ public class EmailService : IEmailService {
           </div>
           <div style='padding:24px 28px;color:#1a1a1a;line-height:1.6'>{body}</div>
           <div style='background:#f5f5f5;padding:12px 28px;text-align:center;font-size:11px;color:#888'>
-            OTW â€” University Carpooling Â· Do not reply to this email
+            OTW — University Carpooling · Do not reply to this email
           </div>
         </div>";
 
@@ -45,51 +49,51 @@ public class EmailService : IEmailService {
         } catch(Exception ex) { Console.WriteLine($"Email error: {ex.Message}"); }
     }
 
-    // â”€â”€ Original 5 methods â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Original 5 methods ─────────────────────
     public Task SendOtpAsync(string to,string name,string otp) =>
-        Send(to,name,"OTW â€” Verify your email", Layout(
+        Send(to,name,"OTW — Verify your email", Layout(
             $"<h2 style='color:#16a36b'>Hi {name}!</h2>" +
             $"<p>Your OTW verification code is:</p>" +
             $"<div style='text-align:center;margin:20px 0'><span style='font-size:36px;font-weight:700;letter-spacing:12px;color:#16a36b'>{otp}</span></div>" +
             $"<p style='color:#888;font-size:12px'>This code expires in 10 minutes. If you did not register on OTW, ignore this email.</p>"));
 
     public Task SendVerificationApprovedAsync(string to,string name) =>
-        Send(to,name,"OTW â€” Account verified âœ“", Layout(
-            $"<h2 style='color:#16a36b'>Hi {name}! ðŸŽ‰</h2>" +
-            $"<p>Great news â€” your student ID has been reviewed and your account is now <strong>verified</strong>.</p>" +
+        Send(to,name,"OTW — Account verified ✓", Layout(
+            $"<h2 style='color:#16a36b'>Hi {name}! 🎉</h2>" +
+            $"<p>Great news — your student ID has been reviewed and your account is now <strong>verified</strong>.</p>" +
             $"<p>You can now search and book rides on OTW. Welcome to the community!</p>" +
-            $"<div style='text-align:center;margin:20px 0'><a href='http://localhost:3000/auth/login' style='background:#16a36b;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600'>Open OTW</a></div>"));
+            $"<div style='text-align:center;margin:20px 0'><a href='{_frontendUrl}/auth/login' style='background:#16a36b;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600'>Open OTW</a></div>"));
 
     public Task SendVerificationRejectedAsync(string to,string name,string reason) =>
-        Send(to,name,"OTW â€” Verification unsuccessful", Layout(
+        Send(to,name,"OTW — Verification unsuccessful", Layout(
             $"<h2 style='color:#1a1a1a'>Hi {name},</h2>" +
             $"<p>Unfortunately your student ID could not be verified.</p>" +
             $"<div style='background:#FCEBEB;border-radius:8px;padding:12px 16px;margin:16px 0;color:#A32D2D'><strong>Reason:</strong> {reason}</div>" +
             $"<p>Please log in, go to your profile, and upload a clearer photo of your student ID. Make sure your name and student number are clearly visible.</p>" +
-            $"<div style='text-align:center;margin:20px 0'><a href='http://localhost:3000/auth/login' style='background:#16a36b;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600'>Upload again</a></div>"));
+            $"<div style='text-align:center;margin:20px 0'><a href='{_frontendUrl}/auth/login' style='background:#16a36b;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600'>Upload again</a></div>"));
 
     public Task SendPasswordResetAsync(string to,string name,string token) =>
-        Send(to,name,"OTW â€” Reset your password", Layout(
+        Send(to,name,"OTW — Reset your password", Layout(
             $"<h2 style='color:#1a1a1a'>Hi {name},</h2>" +
             $"<p>We received a request to reset your password. Click the button below to set a new one.</p>" +
-            $"<div style='text-align:center;margin:24px 0'><a href='http://localhost:3000/auth/reset-password?token={token}' style='background:#16a36b;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600'>Reset password</a></div>" +
+            $"<div style='text-align:center;margin:24px 0'><a href='{_frontendUrl}/auth/reset-password?token={token}' style='background:#16a36b;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600'>Reset password</a></div>" +
             $"<p style='color:#888;font-size:12px'>This link expires in 15 minutes. If you did not request a password reset, ignore this email.</p>"));
 
     public Task SendWarningAsync(string to,string name,string note) =>
-        Send(to,name,"OTW â€” Account warning", Layout(
+        Send(to,name,"OTW — Account warning", Layout(
             $"<h2 style='color:#854F0B'>Hi {name},</h2>" +
             $"<p>You have received a warning from the OTW admin team.</p>" +
             $"<div style='background:#FAEEDA;border-radius:8px;padding:12px 16px;margin:16px 0;color:#854F0B'>{note}</div>" +
             $"<p>Please review our community guidelines. Repeated violations may result in account suspension.</p>"));
 
-    // â”€â”€ New 5 booking-related emails â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── New 5 booking-related emails ──────────
     public Task SendBookingAcceptedAsync(string to,string riderName,string from,string to2,string date,string driverName,string carPlate) =>
-        Send(to,riderName,"OTW â€” Your booking is confirmed âœ“", Layout(
-            $"<h2 style='color:#16a36b'>Great news, {riderName}! ðŸŽ‰</h2>" +
+        Send(to,riderName,"OTW — Your booking is confirmed ✓", Layout(
+            $"<h2 style='color:#16a36b'>Great news, {riderName}! 🎉</h2>" +
             $"<p>Your booking has been <strong>accepted</strong> by the driver.</p>" +
             $"<div style='background:#E1F5EE;border-radius:8px;padding:16px;margin:16px 0'>" +
             $"  <table style='width:100%;font-size:13px;border-collapse:collapse'>" +
-            $"    <tr><td style='color:#888;padding:4px 0'>Route</td><td style='font-weight:600'>{from} â†’ {to2}</td></tr>" +
+            $"    <tr><td style='color:#888;padding:4px 0'>Route</td><td style='font-weight:600'>{from} → {to2}</td></tr>" +
             $"    <tr><td style='color:#888;padding:4px 0'>Date & time</td><td style='font-weight:600'>{date}</td></tr>" +
             $"    <tr><td style='color:#888;padding:4px 0'>Driver</td><td style='font-weight:600'>{driverName}</td></tr>" +
             $"    <tr><td style='color:#888;padding:4px 0'>Car plate</td><td style='font-weight:600'>{carPlate}</td></tr>" +
@@ -97,47 +101,47 @@ public class EmailService : IEmailService {
             $"  </table>" +
             $"</div>" +
             $"<p>Please be at the pickup point on time. You can message your driver directly in the OTW app.</p>" +
-            $"<div style='text-align:center;margin:20px 0'><a href='http://localhost:3000/rider/dashboard' style='background:#16a36b;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600'>View in OTW</a></div>"));
+            $"<div style='text-align:center;margin:20px 0'><a href='{_frontendUrl}/rider/dashboard' style='background:#16a36b;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600'>View in OTW</a></div>"));
 
     public Task SendBookingDeclinedAsync(string to,string riderName,string from,string to2,string date) =>
-        Send(to,riderName,"OTW â€” Booking not accepted", Layout(
+        Send(to,riderName,"OTW — Booking not accepted", Layout(
             $"<h2 style='color:#1a1a1a'>Hi {riderName},</h2>" +
             $"<p>Unfortunately your booking request was <strong>not accepted</strong> by the driver.</p>" +
             $"<div style='background:#f5f5f5;border-radius:8px;padding:16px;margin:16px 0;font-size:13px'>" +
-            $"  <div><span style='color:#888'>Route:</span> <strong>{from} â†’ {to2}</strong></div>" +
+            $"  <div><span style='color:#888'>Route:</span> <strong>{from} → {to2}</strong></div>" +
             $"  <div style='margin-top:6px'><span style='color:#888'>Date:</span> <strong>{date}</strong></div>" +
             $"</div>" +
-            $"<p>Don't worry â€” there are other rides available. Search for an alternative on OTW.</p>" +
-            $"<div style='text-align:center;margin:20px 0'><a href='http://localhost:3000/rider/search' style='background:#16a36b;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600'>Find another ride</a></div>"));
+            $"<p>Don't worry — there are other rides available. Search for an alternative on OTW.</p>" +
+            $"<div style='text-align:center;margin:20px 0'><a href='{_frontendUrl}/rider/search' style='background:#16a36b;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600'>Find another ride</a></div>"));
 
     public Task SendRideReminderAsync(string to,string riderName,string from,string to2,string date,string driverName,string carPlate,string carModel) =>
-        Send(to,riderName,"OTW â€” Your ride is in 1 hour ðŸš—", Layout(
+        Send(to,riderName,"OTW — Your ride is in 1 hour 🚗", Layout(
             $"<h2 style='color:#1a1a1a'>Hi {riderName}, your ride is soon!</h2>" +
-            $"<p>Reminder â€” you have a confirmed ride departing in approximately <strong>1 hour</strong>.</p>" +
+            $"<p>Reminder — you have a confirmed ride departing in approximately <strong>1 hour</strong>.</p>" +
             $"<div style='background:#E6F1FB;border-radius:8px;padding:16px;margin:16px 0'>" +
             $"  <table style='width:100%;font-size:13px;border-collapse:collapse'>" +
             $"    <tr><td style='color:#888;padding:4px 0'>Pickup</td><td style='font-weight:600'>{from}</td></tr>" +
             $"    <tr><td style='color:#888;padding:4px 0'>Destination</td><td style='font-weight:600'>{to2}</td></tr>" +
             $"    <tr><td style='color:#888;padding:4px 0'>Departure</td><td style='font-weight:600'>{date}</td></tr>" +
             $"    <tr><td style='color:#888;padding:4px 0'>Driver</td><td style='font-weight:600'>{driverName}</td></tr>" +
-            $"    <tr><td style='color:#888;padding:4px 0'>Car</td><td style='font-weight:600'>{carModel} Â· {carPlate}</td></tr>" +
+            $"    <tr><td style='color:#888;padding:4px 0'>Car</td><td style='font-weight:600'>{carModel} · {carPlate}</td></tr>" +
             $"  </table>" +
             $"</div>" +
             $"<p>Please be ready at the pickup point a few minutes early. Have the cash ready for payment.</p>" +
-            $"<div style='text-align:center;margin:20px 0'><a href='http://localhost:3000/rider/dashboard' style='background:#185FA5;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600'>Open OTW app</a></div>"));
+            $"<div style='text-align:center;margin:20px 0'><a href='{_frontendUrl}/rider/dashboard' style='background:#185FA5;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600'>Open OTW app</a></div>"));
 
     public Task SendRateRideAsync(string to,string userName,string role,string otherName,int bookingId) =>
-        Send(to,userName,"OTW â€” How was your ride? â­", Layout(
+        Send(to,userName,"OTW — How was your ride? ⭐", Layout(
             $"<h2 style='color:#1a1a1a'>Hi {userName}, how did it go?</h2>" +
             $"<p>Your ride has been completed. We'd love to hear how it went!</p>" +
             $"<p>Please take a moment to rate your {(role=="Rider"?"driver":"rider")}, <strong>{otherName}</strong>. Your feedback helps keep the OTW community safe and trusted.</p>" +
             $"<div style='text-align:center;margin:24px 0'>" +
-            $"  <a href='http://localhost:3000/{role.ToLower()}/rate/{bookingId}' style='background:#EF9F27;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600'>â­ Rate now</a>" +
+            $"  <a href='{_frontendUrl}/{role.ToLower()}/rate/{bookingId}' style='background:#EF9F27;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600'>⭐ Rate now</a>" +
             $"</div>" +
             $"<p style='color:#888;font-size:12px'>Rating takes less than 30 seconds. It helps other students make better decisions.</p>"));
 
     public Task SendAdminVerificationReminderAsync(string adminEmail,string driverName,string driverEmail,int userId) =>
-        Send(adminEmail,"OTW Admin","OTW â€” Driver verification reminder", Layout(
+        Send(adminEmail,"OTW Admin","OTW — Driver verification reminder", Layout(
             $"<h2 style='color:#1a1a1a'>Verification reminder</h2>" +
             $"<p>Driver <strong>{driverName}</strong> ({driverEmail}) is waiting for account verification and has sent a reminder.</p>" +
             $"<div style='background:#EFF6FF;border-radius:8px;padding:12px 16px;margin:16px 0;font-size:13px'>" +
@@ -145,6 +149,43 @@ public class EmailService : IEmailService {
             $"  <div style='margin-top:4px'><span style='color:#888'>Email:</span> <strong>{driverEmail}</strong></div>" +
             $"  <div style='margin-top:4px'><span style='color:#888'>User ID:</span> <strong>{userId}</strong></div>" +
             $"</div>" +
-            $"<div style='text-align:center;margin:20px 0'><a href='http://localhost:3000/admin/verifications' style='background:#185FA5;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600'>Review in admin panel</a></div>"));
+            $"<div style='text-align:center;margin:20px 0'><a href='{_frontendUrl}/admin/verifications' style='background:#185FA5;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600'>Review in admin panel</a></div>"));
+
+    // ── Demand: nudge a matching driver about an open rider request ──
+    public Task SendDemandNotifyAsync(string to,string driverName,string from,string to2,string date,int seats) =>
+        Send(to,driverName,"OTW — A rider needs a ride on your route 🚗", Layout(
+            $"<h2 style='color:#16a36b'>Hi {driverName},</h2>" +
+            $"<p>A rider is looking for a ride that matches your availability. Accept it in the app and OTW will create the ride and book them for you automatically.</p>" +
+            $"<div style='background:#E6F1FB;border-radius:8px;padding:16px;margin:16px 0'>" +
+            $"  <table style='width:100%;font-size:13px;border-collapse:collapse'>" +
+            $"    <tr><td style='color:#888;padding:4px 0'>Route</td><td style='font-weight:600'>{from} → {to2}</td></tr>" +
+            $"    <tr><td style='color:#888;padding:4px 0'>When</td><td style='font-weight:600'>{date}</td></tr>" +
+            $"    <tr><td style='color:#888;padding:4px 0'>Seats needed</td><td style='font-weight:600'>{seats}</td></tr>" +
+            $"  </table>" +
+            $"</div>" +
+            $"<div style='text-align:center;margin:20px 0'><a href='{_frontendUrl}/driver/availability' style='background:#16a36b;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600'>View &amp; accept</a></div>"));
+
+    // ── SOS emergency alert ────────────────────────
+    public Task SendSosAlertAsync(string to,string toName,string fromName,string? mapsUrl) =>
+        Send(to, string.IsNullOrWhiteSpace(toName)?to:toName, $"🚨 SOS — {fromName} needs help", Layout(
+            (string.IsNullOrWhiteSpace(mapsUrl)
+            ? // No live location available
+              $"<h2 style='color:#DC2626'>🚨 Emergency alert</h2>" +
+              $"<p><strong>{fromName}</strong> has triggered an SOS alert on OTW.</p>" +
+              $"<div style='background:#FEE2E2;border-radius:8px;padding:16px;margin:16px 0;color:#991B1B;font-size:16px;font-weight:700'>They need help — they may be in danger.</div>" +
+              $"<p>Live location was not available. Please call them now, and contact emergency services if needed.</p>"
+            : // Live location shared
+              $"<h2 style='color:#DC2626'>🚨 Emergency alert</h2>" +
+              $"<p><strong>{fromName}</strong> has triggered an SOS alert on OTW and shared their live location with you.</p>" +
+              $"<div style='background:#FEE2E2;border-radius:8px;padding:16px;margin:16px 0'>" +
+              $"  <div style='color:#991B1B;font-weight:600;margin-bottom:8px'>Live location</div>" +
+              $"  <a href='{mapsUrl}' style='color:#DC2626;font-weight:600'>📍 Open in Google Maps</a>" +
+              $"</div>" +
+              $"<p>Please try to reach them immediately. If you cannot, contact emergency services.</p>" +
+              $"<div style='text-align:center;margin:20px 0'><a href='{mapsUrl}' style='background:#DC2626;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600'>View live location</a></div>")
+            + $"<div style='background:#f5f5f5;border-radius:8px;padding:12px 16px;margin:16px 0;font-size:13px'>" +
+              $"  <div><span style='color:#888'>Police:</span> <strong>112</strong></div>" +
+              $"  <div style='margin-top:4px'><span style='color:#888'>Lebanese Red Cross:</span> <strong>140</strong></div>" +
+              $"</div>"));
 }
 

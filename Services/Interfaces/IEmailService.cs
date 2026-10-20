@@ -19,11 +19,15 @@ public interface IEmailService {
     Task SendVerificationRejectedAsync(string to, string name, string reason);
     Task SendPasswordResetAsync(string to, string name, string token);
     Task SendWarningAsync(string to, string name, string note);
-    // â”€â”€ New booking emails â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── New booking emails ─────────────────────
     Task SendBookingAcceptedAsync(string to, string riderName, string from, string to2, string date, string driverName, string carPlate);
     Task SendBookingDeclinedAsync(string to, string riderName, string from, string to2, string date);
     Task SendRideReminderAsync(string to, string riderName, string from, string to2, string date, string driverName, string carPlate, string carModel);
     Task SendRateRideAsync(string to, string userName, string role, string otherName, int bookingId);
     Task SendAdminVerificationReminderAsync(string adminEmail, string driverName, string driverEmail, int userId);
+    // SOS emergency alert to a rider's trusted contact. mapsUrl is null when no live location.
+    Task SendSosAlertAsync(string to, string toName, string fromName, string? mapsUrl);
+    // Admin nudges a matching driver about an open rider request (demand planning).
+    Task SendDemandNotifyAsync(string to, string driverName, string from, string to2, string date, int seats);
 }
 
