@@ -22,6 +22,7 @@ if (!string.IsNullOrEmpty(port)) builder.WebHost.UseUrls($"http://0.0.0.0:{port}
 builder.Services.Configure<AppSettings>(builder.Configuration.GetSection("AppSettings"));
 builder.Services.Configure<MailSettings>(builder.Configuration.GetSection("MailKit"));
 builder.Services.Configure<ImgBbSettings>(builder.Configuration.GetSection("ImgBB"));
+builder.Services.Configure<BrevoSettings>(builder.Configuration.GetSection("Brevo"));
 builder.Services.AddHttpClient();
 
 // ── Database ──────────────────────────────────

@@ -15,9 +15,13 @@ namespace OTW.Api.Services;
 
 public class EmailService : IEmailService {
     readonly MailSettings _cfg;
+    readonly BrevoSettings _brevo;
+    readonly IHttpClientFactory _http;
     readonly string _frontendUrl;
-    public EmailService(IOptions<MailSettings> cfg, IOptions<AppSettings> app) {
+    public EmailService(IOptions<MailSettings> cfg, IOptions<BrevoSettings> brevo, IHttpClientFactory http, IOptions<AppSettings> app) {
         _cfg = cfg.Value;
+        _brevo = brevo.Value;
+        _http = http;
         _frontendUrl = app.Value.FrontendUrl.TrimEnd('/');
     }
 
@@ -36,16 +40,24 @@ public class EmailService : IEmailService {
 
     async Task Send(string to,string name,string subject,string html) {
         try {
-            var msg=new MimeMessage();
-            msg.From.Add(new MailboxAddress(_cfg.DisplayName,_cfg.Email));
-            msg.To.Add(new MailboxAddress(name,to));
-            msg.Subject=subject;
-            msg.Body=new TextPart("html"){Text=html};
-            using var c=new SmtpClient();
-            await c.ConnectAsync("smtp.gmail.com",587,false);
-            await c.AuthenticateAsync(_cfg.Email,_cfg.AppPassword);
-            await c.SendAsync(msg);
-            await c.DisconnectAsync(true);
+            // Sent over HTTPS (port 443) via Brevo's transactional API — SMTP ports
+            // are blocked on Render and most PaaS free tiers. 20s cap so a slow or
+            // unreachable mail service can never hang the HTTP request that called us.
+            var client = _http.CreateClient();
+            client.Timeout = TimeSpan.FromSeconds(20);
+            var payload = new {
+                sender      = new { name = _cfg.DisplayName, email = _cfg.Email },
+                to          = new[] { new { email = to, name = string.IsNullOrWhiteSpace(name) ? to : name } },
+                subject,
+                htmlContent = html
+            };
+            var req = new HttpRequestMessage(HttpMethod.Post, "https://api.brevo.com/v3/smtp/email");
+            req.Headers.Add("api-key", _brevo.ApiKey);
+            req.Headers.Add("accept", "application/json");
+            req.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+            var res = await client.SendAsync(req);
+            if (!res.IsSuccessStatusCode)
+                Console.WriteLine($"Email error: {(int)res.StatusCode} {await res.Content.ReadAsStringAsync()}");
         } catch(Exception ex) { Console.WriteLine($"Email error: {ex.Message}"); }
     }
 
